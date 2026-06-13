@@ -112,6 +112,9 @@ func (s *SQLiteStore) ListHighlights() ([]Highlight, error) {
 		}
 		highlights = append(highlights, h)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return highlights, nil
 }
 
@@ -136,6 +139,9 @@ func (s *SQLiteStore) ListBooks() ([]Book, error) {
 			return nil, err
 		}
 		books = append(books, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return books, nil
 }
