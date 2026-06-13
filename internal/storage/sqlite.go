@@ -1,7 +1,10 @@
 package storage
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
+	"fmt"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -63,6 +66,14 @@ func (s *SQLiteStore) CreateHighlight(h *Highlight) (int64, error) {
 	now := time.Now()
 	h.CreatedAt = now
 	h.UpdatedAt = now
+
+	if h.ReadwiseID == "" {
+		b := make([]byte, 16)
+		if _, err := rand.Read(b); err != nil {
+			return 0, fmt.Errorf("failed to generate readwise_id: %w", err)
+		}
+		h.ReadwiseID = hex.EncodeToString(b)
+	}
 
 	result, err := s.db.Exec(
 		`INSERT INTO highlights (readwise_id, text, note, title, author, source, color, book_type, created_at, updated_at)

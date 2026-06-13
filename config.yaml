@@ -3,7 +3,7 @@ server:
   port: 8080
 
 auth:
-  token: "your-secret-token-here"
+  token: "123456"
 
 database:
   path: "./data/highlights.db"

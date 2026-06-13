@@ -11,10 +11,15 @@ func NewRouter(store *storage.SQLiteStore, token string) *gin.Engine {
 	auth := r.Group("/")
 	auth.Use(AuthMiddleware(token))
 	{
+		auth.POST("/", CreateHighlights(store))
+
 		auth.GET("/api/v3/highlights/", ListHighlights(store))
 		auth.POST("/api/v3/highlights/", CreateHighlights(store))
 		auth.GET("/api/v3/highlights/:id", GetHighlight(store))
 		auth.DELETE("/api/v3/highlights/:id", DeleteHighlight(store))
+
+		auth.GET("/api/v2/highlights/", ListHighlights(store))
+		auth.POST("/api/v2/highlights/", CreateHighlights(store))
 
 		auth.GET("/api/v3/books/", ListBooks(store))
 		auth.GET("/api/v3/books/:id", GetBook(store))

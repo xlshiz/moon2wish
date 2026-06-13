@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/csv"
+	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -23,16 +25,33 @@ func ListHighlights(store *storage.SQLiteStore) gin.HandlerFunc {
 
 func CreateHighlights(store *storage.SQLiteStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var input struct {
-			Highlights []storage.Highlight `json:"highlights" binding:"required"`
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read body"})
+			return
 		}
-		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+
+		var highlights []storage.Highlight
+
+		var batch struct {
+			Highlights []storage.Highlight `json:"highlights"`
+		}
+		if err := json.Unmarshal(body, &batch); err == nil && len(batch.Highlights) > 0 {
+			highlights = batch.Highlights
+		} else {
+			var single storage.Highlight
+			if err := json.Unmarshal(body, &single); err == nil && single.Title != "" {
+				highlights = append(highlights, single)
+			}
+		}
+
+		if len(highlights) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "no highlights found in request"})
 			return
 		}
 
 		var created []storage.Highlight
-		for _, h := range input.Highlights {
+		for _, h := range highlights {
 			if _, err := store.CreateHighlight(&h); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
