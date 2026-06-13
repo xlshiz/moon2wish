@@ -1,0 +1,14 @@
+[Unit]
+Description=Moon Readwise Server
+After=network.target
+
+[Service]
+Type=simple
+User=shixl
+WorkingDirectory=/home/shixl/workdir/moon
+ExecStart=/home/shixl/workdir/moon/moon-readwise
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,8 +1,10 @@
 package api
 
 import (
+	"encoding/csv"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/moon-readwise-server/internal/storage"
@@ -15,7 +17,7 @@ func ListHighlights(store *storage.SQLiteStore) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, highlights)
+		c.JSON(http.StatusOK, gin.H{"highlights": highlights})
 	}
 }
 
@@ -113,7 +115,12 @@ func ExportJSON(store *storage.SQLiteStore) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, highlights)
+
+		c.JSON(http.StatusOK, gin.H{
+			"highlights":  highlights,
+			"total":       len(highlights),
+			"exported_at": time.Now().UTC(),
+		})
 	}
 }
 
@@ -127,10 +134,23 @@ func ExportCSV(store *storage.SQLiteStore) gin.HandlerFunc {
 
 		c.Header("Content-Type", "text/csv")
 		c.Header("Content-Disposition", "attachment; filename=highlights.csv")
-		c.String(http.StatusOK, "id,text,title,author,source,color\n")
+
+		w := csv.NewWriter(c.Writer)
+		defer w.Flush()
+
+		w.Write([]string{"id", "text", "note", "title", "author", "source", "color", "created_at"})
+
 		for _, h := range highlights {
-			c.String(http.StatusOK, "%d,\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"\n",
-				h.ID, h.Text, h.Title, h.Author, h.Source, h.Color)
+			w.Write([]string{
+				strconv.FormatInt(h.ID, 10),
+				h.Text,
+				h.Note,
+				h.Title,
+				h.Author,
+				h.Source,
+				h.Color,
+				h.CreatedAt.Format(time.RFC3339),
+			})
 		}
 	}
 }
