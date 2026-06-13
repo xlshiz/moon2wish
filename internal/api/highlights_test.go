@@ -5,26 +5,28 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/moon-readwise-server/internal/storage"
 )
 
-func setupTestRouter() (*gin.Engine, *storage.SQLiteStore) {
+func setupTestRouter(t *testing.T) (*gin.Engine, *storage.SQLiteStore) {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
-	dbPath := "/tmp/test_api_highlights.db"
-	os.Remove(dbPath)
-
-	store, _ := storage.NewSQLiteStore(dbPath)
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	store, err := storage.NewSQLiteStore(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create store: %v", err)
+	}
 	token := "test-token"
 	r := NewRouter(store, token)
 	return r, store
 }
 
 func TestCreateHighlights(t *testing.T) {
-	r, store := setupTestRouter()
+	r, store := setupTestRouter(t)
 	defer store.Close()
 
 	body := `{
@@ -35,7 +37,7 @@ func TestCreateHighlights(t *testing.T) {
 		}]
 	}`
 
-	req, _ := http.NewRequest("POST", "/api/v3/highlights/", bytes.NewBufferString(body))
+	req, _ := http.NewRequest("POST", "/api/v2/highlights/", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Token test-token")
 
@@ -48,10 +50,10 @@ func TestCreateHighlights(t *testing.T) {
 }
 
 func TestListHighlights(t *testing.T) {
-	r, store := setupTestRouter()
+	r, store := setupTestRouter(t)
 	defer store.Close()
 
-	req, _ := http.NewRequest("GET", "/api/v3/highlights/", nil)
+	req, _ := http.NewRequest("GET", "/api/v2/highlights/", nil)
 	req.Header.Set("Authorization", "Token test-token")
 
 	w := httptest.NewRecorder()
