@@ -65,9 +65,9 @@ func (s *SQLiteStore) CreateHighlight(h *Highlight) (int64, error) {
 	h.UpdatedAt = now
 
 	result, err := s.db.Exec(
-		`INSERT INTO highlights (text, note, title, author, source, color, book_type, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		h.Text, h.Note, h.Title, h.Author, h.Source, h.Color, h.BookType, h.CreatedAt, h.UpdatedAt,
+		`INSERT INTO highlights (readwise_id, text, note, title, author, source, color, book_type, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		h.ReadwiseID, h.Text, h.Note, h.Title, h.Author, h.Source, h.Color, h.BookType, h.CreatedAt, h.UpdatedAt,
 	)
 	if err != nil {
 		return 0, err
@@ -85,9 +85,9 @@ func (s *SQLiteStore) CreateHighlight(h *Highlight) (int64, error) {
 func (s *SQLiteStore) GetHighlight(id int64) (*Highlight, error) {
 	var h Highlight
 	err := s.db.QueryRow(
-		`SELECT id, text, note, title, author, source, color, book_type, created_at, updated_at
+		`SELECT id, readwise_id, text, note, title, author, source, color, book_type, created_at, updated_at
 		 FROM highlights WHERE id = ?`, id,
-	).Scan(&h.ID, &h.Text, &h.Note, &h.Title, &h.Author, &h.Source, &h.Color, &h.BookType, &h.CreatedAt, &h.UpdatedAt)
+	).Scan(&h.ID, &h.ReadwiseID, &h.Text, &h.Note, &h.Title, &h.Author, &h.Source, &h.Color, &h.BookType, &h.CreatedAt, &h.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (s *SQLiteStore) GetHighlight(id int64) (*Highlight, error) {
 
 func (s *SQLiteStore) ListHighlights() ([]Highlight, error) {
 	rows, err := s.db.Query(
-		`SELECT id, text, note, title, author, source, color, book_type, created_at, updated_at
+		`SELECT id, readwise_id, text, note, title, author, source, color, book_type, created_at, updated_at
 		 FROM highlights ORDER BY created_at DESC`,
 	)
 	if err != nil {
@@ -107,7 +107,7 @@ func (s *SQLiteStore) ListHighlights() ([]Highlight, error) {
 	var highlights []Highlight
 	for rows.Next() {
 		var h Highlight
-		if err := rows.Scan(&h.ID, &h.Text, &h.Note, &h.Title, &h.Author, &h.Source, &h.Color, &h.BookType, &h.CreatedAt, &h.UpdatedAt); err != nil {
+		if err := rows.Scan(&h.ID, &h.ReadwiseID, &h.Text, &h.Note, &h.Title, &h.Author, &h.Source, &h.Color, &h.BookType, &h.CreatedAt, &h.UpdatedAt); err != nil {
 			return nil, err
 		}
 		highlights = append(highlights, h)
