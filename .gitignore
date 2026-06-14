@@ -1,3 +1,6 @@
 moon-readwise
+moon-cli
 data/
 server.log
+config.yaml
+deploy/moon-readwise.env

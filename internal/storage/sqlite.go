@@ -134,6 +134,21 @@ func (s *SQLiteStore) DeleteHighlight(id int64) error {
 	return err
 }
 
+func (s *SQLiteStore) UpdateHighlight(h *Highlight) error {
+	h.UpdatedAt = time.Now()
+	_, err := s.db.Exec(
+		`UPDATE highlights SET text = ?, note = ?, title = ?, author = ?, source = ?, color = ?, book_type = ?, updated_at = ?
+		 WHERE id = ?`,
+		h.Text, h.Note, h.Title, h.Author, h.Source, h.Color, h.BookType, h.UpdatedAt, h.ID,
+	)
+	return err
+}
+
+func (s *SQLiteStore) DeleteAllHighlights() error {
+	_, err := s.db.Exec(`DELETE FROM highlights`)
+	return err
+}
+
 func (s *SQLiteStore) ListBooks() ([]Book, error) {
 	rows, err := s.db.Query(
 		`SELECT id, title, author, num_highlights FROM books ORDER BY title`,

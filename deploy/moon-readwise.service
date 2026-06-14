@@ -4,8 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=shixl
+User=pi
 WorkingDirectory=/home/shixl/workdir/moon
+EnvironmentFile=/etc/moon-readwise/env
 ExecStart=/home/shixl/workdir/moon/moon-readwise
 Restart=always
 RestartSec=5

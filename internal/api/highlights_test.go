@@ -21,7 +21,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *storage.SQLiteStore) {
 		t.Fatalf("Failed to create store: %v", err)
 	}
 	token := "test-token"
-	r := NewRouter(store, token)
+	r := NewRouter(store, token, false)
 	return r, store
 }
 
@@ -37,7 +37,7 @@ func TestCreateHighlights(t *testing.T) {
 		}]
 	}`
 
-	req, _ := http.NewRequest("POST", "/api/v2/highlights/", bytes.NewBufferString(body))
+	req, _ := http.NewRequest("POST", "/api/moon/v2/highlights/", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Token test-token")
 
@@ -53,7 +53,7 @@ func TestListHighlights(t *testing.T) {
 	r, store := setupTestRouter(t)
 	defer store.Close()
 
-	req, _ := http.NewRequest("GET", "/api/v2/highlights/", nil)
+	req, _ := http.NewRequest("GET", "/api/moon/v2/highlights/", nil)
 	req.Header.Set("Authorization", "Token test-token")
 
 	w := httptest.NewRecorder()

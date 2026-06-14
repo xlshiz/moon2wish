@@ -12,11 +12,13 @@ import (
 	"github.com/moon-readwise-server/internal/storage"
 )
 
+const maxBodySize = 1 << 20 // 1MB
+
 func ListHighlights(store *storage.SQLiteStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		highlights, err := store.ListHighlights()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"highlights": highlights})
@@ -25,7 +27,7 @@ func ListHighlights(store *storage.SQLiteStore) gin.HandlerFunc {
 
 func CreateHighlights(store *storage.SQLiteStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		body, err := io.ReadAll(c.Request.Body)
+		body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxBodySize))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read body"})
 			return
@@ -53,7 +55,7 @@ func CreateHighlights(store *storage.SQLiteStore) gin.HandlerFunc {
 		var created []storage.Highlight
 		for _, h := range highlights {
 			if _, err := store.CreateHighlight(&h); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 				return
 			}
 			created = append(created, h)
@@ -98,11 +100,86 @@ func DeleteHighlight(store *storage.SQLiteStore) gin.HandlerFunc {
 	}
 }
 
+func UpdateHighlight(store *storage.SQLiteStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			return
+		}
+
+		// 获取现有高亮
+		h, err := store.GetHighlight(id)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "highlight not found"})
+			return
+		}
+
+		// 读取请求体
+		body, err := io.ReadAll(io.LimitReader(c.Request.Body, maxBodySize))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read body"})
+			return
+		}
+
+		// 解析更新字段
+		var updates map[string]interface{}
+		if err := json.Unmarshal(body, &updates); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON"})
+			return
+		}
+
+		// 应用更新
+		if v, ok := updates["text"].(string); ok {
+			h.Text = v
+		}
+		if v, ok := updates["note"].(string); ok {
+			h.Note = v
+		}
+		if v, ok := updates["title"].(string); ok {
+			h.Title = v
+		}
+		if v, ok := updates["author"].(string); ok {
+			h.Author = v
+		}
+		if v, ok := updates["source"].(string); ok {
+			h.Source = v
+		}
+		if v, ok := updates["source_url"].(string); ok {
+			h.Source = v // source_url 映射到 source
+		}
+		if v, ok := updates["color"].(string); ok {
+			h.Color = v
+		}
+		if v, ok := updates["book_type"].(string); ok {
+			h.BookType = v
+		}
+
+		// 更新到数据库
+		if err := store.UpdateHighlight(h); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			return
+		}
+
+		c.JSON(http.StatusOK, h)
+	}
+}
+
+func DeleteAllHighlights(store *storage.SQLiteStore) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if err := store.DeleteAllHighlights(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "all highlights deleted"})
+	}
+}
+
 func ListBooks(store *storage.SQLiteStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		books, err := store.ListBooks()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 			return
 		}
 		c.JSON(http.StatusOK, books)
@@ -131,7 +208,7 @@ func ExportJSON(store *storage.SQLiteStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		highlights, err := store.ListHighlights()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 			return
 		}
 
@@ -147,7 +224,7 @@ func ExportCSV(store *storage.SQLiteStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		highlights, err := store.ListHighlights()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 			return
 		}
 

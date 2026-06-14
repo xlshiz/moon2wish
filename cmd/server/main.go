@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/moon-readwise-server/internal/api"
@@ -38,11 +42,27 @@ func LoadConfig(path string) (*Config, error) {
 	return &cfg, nil
 }
 
+var version = "dev"
+
 func main() {
-	cfg, err := LoadConfig("config.yaml")
+	cfgPath := flag.String("c", "config.yaml", "config file path")
+	debug := flag.Bool("d", false, "enable debug mode")
+	showVersion := flag.Bool("v", false, "print version")
+	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("moon-readwise", version)
+		os.Exit(0)
+	}
+
+	cfg, err := LoadConfig(*cfgPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		os.Exit(1)
+	}
+
+	if envToken := os.Getenv("MOON_AUTH_TOKEN"); envToken != "" {
+		cfg.Auth.Token = envToken
 	}
 
 	dir := filepath.Dir(cfg.Database.Path)
@@ -58,13 +78,22 @@ func main() {
 	}
 	defer store.Close()
 
-	gin.SetMode(gin.ReleaseMode)
-	r := api.NewRouter(store, cfg.Auth.Token)
+	if *debug {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	r := api.NewRouter(store, cfg.Auth.Token, *debug)
+
+	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: r,
+	}
 
 	go func() {
-		addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 		fmt.Printf("Server starting on %s\n", addr)
-		if err := r.Run(addr); err != nil {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			fmt.Fprintf(os.Stderr, "Failed to start server: %v\n", err)
 			os.Exit(1)
 		}
@@ -74,4 +103,11 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
 	fmt.Printf("Received signal %v, shutting down...\n", sig)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "Server forced to shutdown: %v\n", err)
+	}
+	fmt.Println("Server exited")
 }
