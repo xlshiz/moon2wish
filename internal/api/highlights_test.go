@@ -8,13 +8,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"github.com/moon-readwise-server/internal/storage"
 )
 
-func setupTestRouter(t *testing.T) (*gin.Engine, *storage.SQLiteStore) {
+func setupTestRouter(t *testing.T) (http.Handler, *storage.SQLiteStore) {
 	t.Helper()
-	gin.SetMode(gin.TestMode)
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 	store, err := storage.NewSQLiteStore(dbPath)
 	if err != nil {
@@ -63,7 +61,7 @@ func TestListHighlights(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	if _, ok := resp["highlights"]; !ok {
 		t.Error("Expected 'highlights' key in response")

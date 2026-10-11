@@ -1,38 +1,56 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/moon-readwise-server/internal/storage"
 )
 
-func NewRouter(store *storage.SQLiteStore, token string, debug bool) *gin.Engine {
-	r := gin.Default()
+func NewRouter(store *storage.SQLiteStore, token string, debug bool) *chi.Mux {
+	r := chi.NewRouter()
 
-	// 注意：Gin的默认日志中间件不会记录Authorization header
-	// 但为了确保安全，我们可以在调试模式下添加安全头中间件
+	// 基础中间件
 	if debug {
 		r.Use(SecurityHeadersMiddleware())
 	}
 
-	auth := r.Group("/api/moon")
-	auth.Use(AuthMiddleware(token))
-	{
-		// V2 API - Readwise 兼容接口
-		auth.POST("/v2/highlights/", CreateHighlights(store))
-		auth.GET("/v2/highlights/", ListHighlights(store))
-		auth.GET("/v2/highlights/:id", GetHighlight(store))
-		auth.PATCH("/v2/highlights/:id", UpdateHighlight(store))
-		auth.DELETE("/v2/highlights/:id", DeleteHighlight(store))
-		auth.DELETE("/v2/highlights/", DeleteAllHighlights(store))
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
 
-		auth.GET("/v2/export/", ExportJSON(store))
-		auth.GET("/v2/books/", ListBooks(store))
-		auth.GET("/v2/books/:id", GetBook(store))
+	r.Route("/api/moon", func(r chi.Router) {
+		// 认证中间件
+		r.Use(AuthMiddleware(token))
+
+		// V2 API - Readwise 兼容接口
+		r.Route("/v2", func(r chi.Router) {
+			r.Route("/highlights", func(r chi.Router) {
+				r.Post("/", CreateHighlights(store))
+				r.Get("/", ListHighlights(store))
+
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", GetHighlight(store))
+					r.Patch("/", UpdateHighlight(store))
+					r.Delete("/", DeleteHighlight(store))
+				})
+
+				// 删除所有高亮（注意路径冲突，放在最后）
+				r.Delete("/", DeleteAllHighlights(store))
+			})
+
+			r.Route("/export", func(r chi.Router) {
+				r.Get("/", ExportJSON(store))
+			})
+
+			r.Route("/books", func(r chi.Router) {
+				r.Get("/", ListBooks(store))
+				r.Get("/{id}", GetBook(store))
+			})
+		})
 
 		// 通用导出接口
-		auth.GET("/export/json", ExportJSON(store))
-		auth.GET("/export/csv", ExportCSV(store))
-	}
+		r.Get("/export/json", ExportJSON(store))
+		r.Get("/export/csv", ExportCSV(store))
+	})
 
 	return r
 }

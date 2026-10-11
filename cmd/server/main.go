@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/moon-readwise-server/internal/api"
 	"github.com/moon-readwise-server/internal/storage"
 	"gopkg.in/yaml.v3"
@@ -78,11 +77,6 @@ func main() {
 	}
 	defer store.Close()
 
-	if *debug {
-		gin.SetMode(gin.DebugMode)
-	} else {
-		gin.SetMode(gin.ReleaseMode)
-	}
 	r := api.NewRouter(store, cfg.Auth.Token, *debug)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

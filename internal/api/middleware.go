@@ -4,32 +4,29 @@ import (
 	"crypto/subtle"
 	"net/http"
 	"strings"
-
-	"github.com/gin-gonic/gin"
 )
 
-func AuthMiddleware(token string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
-			c.Abort()
-			return
-		}
+func AuthMiddleware(token string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				jsonError(w, http.StatusUnauthorized, "Authorization header required")
+				return
+			}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Token" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization format"})
-			c.Abort()
-			return
-		}
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) != 2 || parts[0] != "Token" {
+				jsonError(w, http.StatusUnauthorized, "Invalid authorization format")
+				return
+			}
 
-		if subtle.ConstantTimeCompare([]byte(parts[1]), []byte(token)) != 1 {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
-		}
+			if subtle.ConstantTimeCompare([]byte(parts[1]), []byte(token)) != 1 {
+				jsonError(w, http.StatusUnauthorized, "Invalid token")
+				return
+			}
 
-		c.Next()
+			next.ServeHTTP(w, r)
+		})
 	}
 }

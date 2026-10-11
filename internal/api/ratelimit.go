@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/gin-gonic/gin"
 )
 
 type rateLimiter struct {
@@ -47,15 +45,16 @@ func (rl *rateLimiter) allow(key string) bool {
 	return true
 }
 
-func RateLimitMiddleware(limit int, window time.Duration) gin.HandlerFunc {
+func RateLimitMiddleware(limit int, window time.Duration) func(http.Handler) http.Handler {
 	rl := newRateLimiter(limit, window)
 
-	return func(c *gin.Context) {
-		if !rl.allow(c.ClientIP()) {
-			c.JSON(http.StatusTooManyRequests, gin.H{"error": "rate limit exceeded"})
-			c.Abort()
-			return
-		}
-		c.Next()
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !rl.allow(r.RemoteAddr) {
+				jsonError(w, http.StatusTooManyRequests, "rate limit exceeded")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 }
